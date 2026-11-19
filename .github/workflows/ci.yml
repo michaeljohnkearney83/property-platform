@@ -141,7 +141,7 @@ jobs:
 
       # Built once here; deploy.yml imports these exact images into each environment's ACR.
       - name: Build ${{ matrix.name }} image${{ inputs.publish && ' and push' || ' (no push)' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
