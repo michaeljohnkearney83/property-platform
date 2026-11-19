@@ -116,16 +116,30 @@ Azure DevOps is used **only for Boards** (agile work tracking). All build, test 
 
 ### CI: `.github/workflows/ci.yml`
 
-CI runs on every pull request and on demand (**Actions -> CI -> Run workflow**). `deploy.yml` also calls it on every push to `main`.
+CI runs on every push to `feature/**`, `bugfix/**` and `hotfix/**` branches, on every pull request, and on demand (**Actions -> CI -> Run workflow**). `deploy.yml` also calls it on every push to `main`.
 
 | Job | What it checks |
 |---|---|
 | API (.NET) | `dotnet format` check, Release build with warnings as errors, tests (results uploaded as an artifact), vulnerable NuGet packages |
 | Web (Next.js) | `npm ci`, lint, typecheck, production build, `npm audit` (high and above) |
 | Infrastructure (Bicep) | Bicep build and lint, and all three `.bicepparam` files compile |
-| Container images | Builds the API, migrations and web images. On `main`, it pushes them to `ghcr.io/<owner>/<repo>/<image>:<sha>` |
+| Container image (api / migrations / web) | Builds each Docker image. On `main`, it pushes them to `ghcr.io/<owner>/<repo>/<image>:<sha>` |
 
 Actions minutes are free for public repositories. Dependabot opens grouped update PRs, and CI checks each one. CodeQL (`codeql.yml`) scans C#, TypeScript and the workflows on every PR, on every push to `main`, and weekly. ADR 0005 lists the delivery best practices this setup follows.
+
+### Branching and release flow (trunk-based)
+
+```
+feature/AB#123-short-name --PR--> main --> dev --> staging (UAT) --[approve]--> prod
+   (CI on every push + PR)    (checks, up to date)  auto     auto                 manual
+```
+
+- **Branches are not environments.** Only `main` is deployed. Each merge produces one build, which is promoted from dev to staging (UAT) to prod.
+- **Work branches:** branch off `main` as `feature/AB#<id>-short-name`, `bugfix/...` or `hotfix/...`. Keep them short-lived (days, not weeks).
+- **Merging:** open a PR, and write `Fixes AB#<id>` in it to close the Boards item on merge. The PR can only merge when all checks pass **and** the branch contains the latest `main`. Use **Update branch** on the PR to merge `main` into it first. PRs are squash-merged, and the branch is then deleted.
+- **Release:** a merge deploys to dev, then staging, automatically. Approving the `prod` deployment in GitHub is the UAT sign-off.
+- **Hotfix:** use the same path (`hotfix/...` -> PR -> main), and approve prod as soon as staging passes.
+- **Unfinished features** go behind feature flags, not long-lived branches, so `main` can always be released.
 
 ### Release: `.github/workflows/deploy.yml`
 
@@ -173,7 +187,13 @@ Migrations run before the new code goes live, so they must be **expand/contract*
    - Secret: `POSTGRES_ADMIN_PASSWORD`
    - On `prod`, add **Required reviewers** and restrict deployments to the `main` branch.
 2. **Variables -> Actions:** add the repository variable `DEPLOY_ENABLED` = `true` when you're ready to deploy.
-3. **Branch protection** on `main`: require a PR, require 1 review, and require these checks: `API (.NET)`, `Web (Next.js)`, `Infrastructure (Bicep)` and `Container images`.
+3. **`main` protection** (already applied with `gh`):
+   - PR required, with **0 approvals**. This is a solo-developer setup; raise it to 1 when a second developer joins.
+   - Required checks: `API (.NET)`, `Web (Next.js)`, `Infrastructure (Bicep)`, `Container image (api|migrations|web)` and `Analyze (csharp|javascript-typescript|actions)`.
+   - The branch must be up to date with `main` before merging.
+   - Linear history; no force pushes or deletions.
+   - The rules apply to admins too.
+   - Repo merge settings: squash merge only, **Update branch** button enabled, and branches deleted after merge.
 4. **Code security:** turn on **Secret scanning** with **Push protection**, and **Dependabot alerts**. CodeQL runs from `codeql.yml`.
 
 **Azure DevOps** (Boards only):
