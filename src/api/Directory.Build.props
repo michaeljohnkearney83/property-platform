@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <!-- Product version: managed by release-please (single source: version.txt / .release-please-manifest.json). -->
-    <Version>0.1.0</Version> <!-- x-release-please-version -->
+    <Version>0.1.1</Version> <!-- x-release-please-version -->
     <Company>Property Platform</Company>
     <Product>Property Platform</Product>
     <LangVersion>latest</LangVersion>
