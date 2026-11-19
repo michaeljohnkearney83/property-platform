@@ -1,0 +1,20 @@
+# .NET
+bin/
+obj/
+*.user
+TestResults/
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+# Env and secrets
+.env
+.env.*
+!.env.example
+# Bicep build output
+infra/**/*.json
+# OS / IDE
+.DS_Store
+.vs/
+.idea/

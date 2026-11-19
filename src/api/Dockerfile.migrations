@@ -1,0 +1,17 @@
+# Builds one EF Core migration bundle per module DbContext and runs them in order.
+# Runs as an Azure Container Apps Job inside the VNet (the database has no public endpoint).
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY . .
+RUN dotnet tool restore
+# Add a line per module DbContext as modules gain persistence.
+RUN dotnet ef migrations bundle -p Modules/Portfolio -s Host -c PortfolioDbContext \
+      --self-contained -r linux-x64 -o /bundles/01-portfolio --configuration Release
+
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0
+WORKDIR /bundles
+COPY --from=build /bundles .
+COPY migrate.sh /migrate.sh
+RUN chmod +x /migrate.sh /bundles/*
+USER app
+ENTRYPOINT ["/migrate.sh"]

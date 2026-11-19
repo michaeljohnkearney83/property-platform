@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.6.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Modules\Compliance\PropertyPlatform.Modules.Compliance.csproj" />
+    <ProjectReference Include="..\Modules\Documents\PropertyPlatform.Modules.Documents.csproj" />
+    <ProjectReference Include="..\Modules\Identity\PropertyPlatform.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Modules\Ledger\PropertyPlatform.Modules.Ledger.csproj" />
+    <ProjectReference Include="..\Modules\Maintenance\PropertyPlatform.Modules.Maintenance.csproj" />
+    <ProjectReference Include="..\Modules\Parties\PropertyPlatform.Modules.Parties.csproj" />
+    <ProjectReference Include="..\Modules\Portfolio\PropertyPlatform.Modules.Portfolio.csproj" />
+    <ProjectReference Include="..\Modules\Tenancies\PropertyPlatform.Modules.Tenancies.csproj" />
+    <ProjectReference Include="..\SharedKernel\PropertyPlatform.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

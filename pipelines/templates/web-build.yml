@@ -1,0 +1,21 @@
+steps:
+  - task: NodeTool@0
+    displayName: Use Node 24
+    inputs:
+      versionSpec: 24.x
+
+  - script: npm ci
+    workingDirectory: src/web
+    displayName: Install
+
+  - script: npm run lint && npm run typecheck
+    workingDirectory: src/web
+    displayName: Lint and typecheck
+
+  - script: npm run build
+    workingDirectory: src/web
+    displayName: Build
+
+  - script: npm audit --audit-level=high --omit=dev
+    workingDirectory: src/web
+    displayName: Dependency audit
