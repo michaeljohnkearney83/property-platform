@@ -11,7 +11,7 @@ RUN dotnet build Host/PropertyPlatform.Host.csproj -c Release
 RUN dotnet ef migrations bundle -p Modules/Portfolio -s Host -c PortfolioDbContext --no-build \
       --self-contained -r linux-x64 -o /bundles/01-portfolio --configuration Release
 
-FROM mcr.microsoft.com/dotnet/runtime-deps:10.0
+FROM mcr.microsoft.com/dotnet/runtime-deps:11.0
 WORKDIR /bundles
 COPY --from=build /bundles .
 COPY migrate.sh /migrate.sh
