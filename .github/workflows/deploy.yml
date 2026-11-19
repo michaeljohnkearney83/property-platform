@@ -1,0 +1,61 @@
+# Release: on every push to main, test once, publish images once, then promote
+# the same images dev -> staging -> prod. prod waits for its environment's required reviewers.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    with:
+      publish: true
+    permissions:
+      contents: read
+      packages: write
+
+  dev:
+    needs: ci
+    # Set the repository variable DEPLOY_ENABLED=true once Azure is configured (see README).
+    # Until then main is still tested and images are published, but nothing is deployed.
+    if: vars.DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: dev
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+
+  staging:
+    needs: dev
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: staging
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
+
+  prod:
+    needs: staging
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: prod
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+      packages: read

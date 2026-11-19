@@ -13,7 +13,7 @@ Use **Bicep**.
 
 - It is Azure-native, so new resource types and API versions are available on day one.
 - There is no state file to host, lock, secure or repair.
-- It is simpler for a small .NET team, and `what-if` previews work in Azure Pipelines through the same workload-identity service connection.
+- It is simpler for a small .NET team, and `what-if` previews can run in GitHub Actions using the same OIDC sign-in as deployments.
 - Microsoft supports it, and it costs nothing extra.
 
 ## Consequences

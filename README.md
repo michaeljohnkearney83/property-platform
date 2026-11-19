@@ -10,7 +10,8 @@ Multi-tenant SaaS for residential property management: portfolio, landlords, ten
 | Hosting | Azure (UK South): Container Apps, PostgreSQL Flexible Server, Blob Storage, Key Vault, Front Door + WAF, Application Insights |
 | IaC | Bicep (`infra/`) |
 | Source control | GitHub |
-| Agile + CI/CD | Azure DevOps Boards + Azure Pipelines (`pipelines/`) |
+| CI/CD | GitHub Actions (`.github/workflows/`), images in GitHub Container Registry |
+| Agile / work tracking | Azure DevOps Boards (only) |
 | Identity | Microsoft Entra External ID (customers) / Entra ID (staff SSO) |
 
 ## Repository layout
@@ -27,7 +28,12 @@ src/web/                  Next.js app (staff UI; portals to follow)
 infra/main.bicep          One environment = one resource group
 infra/modules/            monitoring, network, postgres, keyvault, registry, storage, containerapps, frontdoor
 infra/env/*.bicepparam    dev / staging / prod parameters
-pipelines/                Azure Pipelines YAML (PR validation + CI/CD)
+.github/workflows/ci.yml          Build, test, lint, Bicep, Docker images (every PR; called by deploy.yml)
+.github/workflows/deploy.yml      On push to main: CI -> publish images to GHCR -> dev -> staging -> prod
+.github/workflows/deploy-env.yml  Deploys one environment (OIDC login to Azure)
+.github/workflows/codeql.yml      CodeQL security scanning (C#, TypeScript, workflows)
+.github/dependabot.yml            Weekly dependency update PRs (NuGet, npm, Actions, Docker)
+scripts/deploy.sh                 The release steps for one environment
 db/init/                  Local Postgres bootstrap (roles, extensions)
 docs/adr/                 Architecture decision records
 ```
@@ -104,6 +110,43 @@ cd src/web && npm run lint && npm run typecheck && npm run build
 
 `ArchitectureTests` fails the build if a module references another module or is missing from the catalogue.
 
+## CI/CD (GitHub Actions)
+
+Azure DevOps is used **only for Boards** (agile work tracking). All build, test and deployment work runs in GitHub Actions.
+
+### CI: `.github/workflows/ci.yml`
+
+CI runs on every pull request and on demand (**Actions -> CI -> Run workflow**). `deploy.yml` also calls it on every push to `main`.
+
+| Job | What it checks |
+|---|---|
+| API (.NET) | `dotnet format` check, Release build with warnings as errors, tests (results uploaded as an artifact), vulnerable NuGet packages |
+| Web (Next.js) | `npm ci`, lint, typecheck, production build, `npm audit` (high and above) |
+| Infrastructure (Bicep) | Bicep build and lint, and all three `.bicepparam` files compile |
+| Container images | Builds the API, migrations and web images. On `main`, it pushes them to `ghcr.io/<owner>/<repo>/<image>:<sha>` |
+
+Actions minutes are free for public repositories. Dependabot opens grouped update PRs, and CI checks each one. CodeQL (`codeql.yml`) scans C#, TypeScript and the workflows on every PR, on every push to `main`, and weekly. ADR 0005 lists the delivery best practices this setup follows.
+
+### Release: `.github/workflows/deploy.yml`
+
+On every push to `main`, the release runs these steps in order:
+
+1. **CI**, which builds and pushes the images **once**.
+2. **dev**
+3. **staging**
+4. **prod**, which waits for a required reviewer to approve.
+
+Every environment gets the exact images that CI tested. Deployment is switched off until you set the repository variable `DEPLOY_ENABLED=true`. Until then, `main` is still tested and its images are still published.
+
+Each environment runs `scripts/deploy.sh`:
+1. Creates the resource group. On the first run only, it also deploys the infrastructure with placeholder images so the container registry exists.
+2. Imports the commit's images from GHCR into that environment's Azure Container Registry (`az acr import`, which runs server-side).
+3. Runs EF Core migrations as a Container Apps Job inside the VNet. The database has no public endpoint.
+4. Deploys Bicep with the new image tag, which creates new API and web revisions.
+5. Smoke-tests `/health/ready` and `/api/health`.
+
+Migrations run before the new code goes live, so they must be **expand/contract**: backwards-compatible with the previous release.
+
 ## Azure environments
 
 | Environment | Resource group | Notes |
@@ -112,29 +155,31 @@ cd src/web && npm run lint && npm run typecheck && npm run build
 | staging | `rg-propertyplatform-staging` | Front Door with WAF in Detection mode |
 | prod | `rg-propertyplatform-prod` | Zone-redundant Postgres HA, geo-redundant backups, GZRS storage, WAF in Prevention mode, 2+ replicas |
 
-### One-time Azure DevOps setup
+### One-time setup
 
-1. **Project:** create it with the **Agile** process. Install the **Azure Boards** and **Azure Pipelines** GitHub apps on the repo. Then mention `AB#<id>` in commits and PRs to link work items.
-2. **Service connections:** for each environment, create `sc-propertyplatform-<env>` (Azure Resource Manager, workload identity federation). Grant it **Owner** on its subscription or resource group; Owner is needed because the templates create role assignments.
-3. **Variable groups:** for each environment, create `propertyplatform-<env>` containing:
-   - `POSTGRES_ADMIN_PASSWORD` (secret)
-   - `AUTH_AUTHORITY`
-   - `AUTH_AUDIENCE`
-4. **Environments:** create `propertyplatform-dev`, `propertyplatform-staging` and `propertyplatform-prod`. Add an **Approvals** check on prod.
-5. **Pipelines:** create two pipelines from existing YAML in the GitHub repo:
-   - `pipelines/pr-validation.yml`
-   - `pipelines/azure-pipelines.yml`
-6. **GitHub branch protection** on `main`: require a PR, require the PR-validation check, and require 1 review.
+**Azure: one identity per environment.** No passwords are stored; sign-in uses OIDC.
 
-### What a release does (`pipelines/templates/deploy-env.yml`)
+1. In Microsoft Entra ID, create an app registration per environment, e.g. `gh-propertyplatform-dev`.
+2. On each one, add a **federated credential**:
+   - Scenario: *GitHub Actions deploying Azure resources*
+   - Entity type: *Environment*
+   - Environment name: `dev`, `staging` or `prod`, matching the app registration
+3. Grant each identity **Owner** on its subscription. Owner is needed because the templates create role assignments. Alternatively, grant Contributor plus Role Based Access Control Administrator.
 
-1. Creates the resource group. On the first run only, it also deploys the infrastructure with placeholder images so the registry exists.
-2. Pushes the images that were built once in the Build stage.
-3. Runs EF Core migrations as a Container Apps Job inside the VNet. The database has no public endpoint.
-4. Deploys Bicep with the new image tag, which creates new API and web revisions.
-5. Smoke-tests `/health/ready` and `/api/health`.
+**GitHub** (repo **Settings**):
 
-Migrations run before the new code goes live, so they must be **expand/contract**: backwards-compatible with the previous release.
+1. **Environments:** create `dev`, `staging` and `prod`.
+   - Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AUTH_AUTHORITY`, `AUTH_AUDIENCE`
+   - Secret: `POSTGRES_ADMIN_PASSWORD`
+   - On `prod`, add **Required reviewers** and restrict deployments to the `main` branch.
+2. **Variables -> Actions:** add the repository variable `DEPLOY_ENABLED` = `true` when you're ready to deploy.
+3. **Branch protection** on `main`: require a PR, require 1 review, and require these checks: `API (.NET)`, `Web (Next.js)`, `Infrastructure (Bicep)` and `Container images`.
+4. **Code security:** turn on **Secret scanning** with **Push protection**, and **Dependabot alerts**. CodeQL runs from `codeql.yml`.
+
+**Azure DevOps** (Boards only):
+
+1. Create a project with the **Agile** process.
+2. Install the **Azure Boards** GitHub app on this repo. Writing `AB#<id>` in a commit or PR then links it to the work item, and `Fixes AB#<id>` closes the item when the PR merges.
 
 ### Manual infrastructure deploy
 

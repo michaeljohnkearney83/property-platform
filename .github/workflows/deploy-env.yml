@@ -1,0 +1,51 @@
+# Reusable: deploys one environment. Called by deploy.yml.
+# Each GitHub Environment (dev, staging, prod) holds its own Azure identity and settings:
+#   Variables: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, AUTH_AUTHORITY, AUTH_AUDIENCE
+#   Secrets:   POSTGRES_ADMIN_PASSWORD
+# prod should have "Required reviewers" set, so every production release needs an approval.
+name: Deploy environment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  id-token: write   # OIDC sign-in to Azure (no stored Azure credentials)
+  packages: read    # ACR imports the images from GHCR
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ steps.deploy.outputs.web_url }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Infrastructure, migrations, release
+        id: deploy
+        run: bash scripts/deploy.sh
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          IMAGE_TAG: ${{ github.sha }}
+          GHCR_REPO: ghcr.io/${{ github.repository }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          AUTH_AUTHORITY: ${{ vars.AUTH_AUTHORITY }}
+          AUTH_AUDIENCE: ${{ vars.AUTH_AUDIENCE }}

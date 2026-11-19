@@ -13,7 +13,7 @@ We are building a new multi-tenant property management SaaS from scratch, starti
 - **Frontend:** Next.js (TypeScript, App Router). The browser calls Next.js; Next.js calls the API server-side.
 - **Database:** PostgreSQL (Azure Database for PostgreSQL Flexible Server).
 - **Source control:** GitHub.
-- **Agile and CI/CD:** Azure DevOps Boards (Agile process) and Azure Pipelines, connected to GitHub with the Boards and Pipelines GitHub apps.
+- **Agile and CI/CD:** Azure DevOps Boards (Agile process) and Azure Pipelines, connected to GitHub with the Boards and Pipelines GitHub apps. *(Superseded by ADR 0004: GitHub Actions for all CI/CD; Azure DevOps for Boards only.)*
 - **Hosting:** Azure only, UK South as primary and UK West for geo-backup. Container Apps, Key Vault, Blob Storage, Front Door + WAF, and Application Insights.
 - **Identity:** Microsoft Entra External ID for landlords, tenants and contractors; Entra ID for staff SSO.
 

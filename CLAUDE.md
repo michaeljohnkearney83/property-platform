@@ -20,6 +20,13 @@ Guidance for AI assistants working in this repository. For setup and commands, r
 - When a change affects how to run, configure or deploy the project, update README.md and this file in the same change.
 - Record significant decisions as a new ADR in `docs/adr/`.
 
+## CI and deployment
+
+- **All CI/CD is GitHub Actions.** `ci.yml` runs on PRs and is called by `deploy.yml` on pushes to `main`. `deploy.yml` publishes images to GHCR once, then deploys dev -> staging -> prod through `deploy-env.yml` and `scripts/deploy.sh`.
+- **Azure DevOps is used for Boards only.** Don't add Azure Pipelines YAML. Link work items with `AB#<id>` in commits and PRs.
+- **Azure sign-in** is OIDC per GitHub Environment. Never add Azure credentials or publish profiles as secrets.
+- **Commits:** don't add Claude co-author or "Generated with Claude Code" lines.
+
 ## Verify before finishing
 
 ```bash
