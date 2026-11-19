@@ -19,6 +19,7 @@ Guidance for AI assistants working in this repository. For setup and commands, r
 - Bicep files must be ASCII only. Non-ASCII characters crash `az bicep` on Windows (cp1252).
 - When a change affects how to run, configure or deploy the project, update README.md and this file in the same change.
 - Record significant decisions as a new ADR in `docs/adr/`.
+- After adding or renaming a `##`/`###` heading in README.md, run `python scripts/readme-toc.py`. CI fails if the Contents menu is stale.
 
 ## CI and deployment
 
@@ -26,7 +27,7 @@ Guidance for AI assistants working in this repository. For setup and commands, r
 - **Azure DevOps is used for Boards only.** Don't add Azure Pipelines YAML. Link work items with `AB#<id>` in commits and PRs.
 - **Azure sign-in** is OIDC per GitHub Environment. Never add Azure credentials or publish profiles as secrets.
 - **Branching:** trunk-based. Work on `feature/AB#<id>-...`, `bugfix/...` or `hotfix/...` branches and open PRs into `main`, which is protected: checks must pass, the branch must be up to date, and merges are squash-only. Never push directly to `main`, and never create `dev`, `uat` or `release` branches; environments are pipeline stages, not branches.
-- **Third-party GitHub Actions are pinned to a full commit SHA** with a `# vX` comment (CodeQL flags unpinned ones). `actions/*` and `github/*` may use tags.
+- **All GitHub Actions are pinned to a full commit SHA** with a `# vX` comment, including `actions/*` and `github/*`. The repo setting "Require actions to be pinned to a full-length commit SHA" rejects anything else, and Dependabot keeps the SHAs current.
 - **Commits:** don't add Claude co-author or "Generated with Claude Code" lines.
 - **PR titles are Conventional Commits** (`feat:`, `fix:`, `deps:`, `docs:`, `refactor:`, `ci:`, `build:`, `chore:`, `test:`, `perf:`, `revert:`; `!` marks a breaking change). They become the squash commit, which release-please reads to pick the next version.
 - **Never hand-edit versions.** `version.txt`, `<Version>` in `src/api/Directory.Build.props`, the `version` in `src/web/package.json` and `CHANGELOG.md` are managed by release-please. `VersionTests` fails if they drift apart.
