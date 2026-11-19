@@ -4,8 +4,11 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
 RUN dotnet tool restore
+# Build once, then bundle with --no-build: letting `ef migrations bundle` run its own
+# build inside the container fails (MSB3552 on the default resx glob).
+RUN dotnet build Host/PropertyPlatform.Host.csproj -c Release
 # Add a line per module DbContext as modules gain persistence.
-RUN dotnet ef migrations bundle -p Modules/Portfolio -s Host -c PortfolioDbContext \
+RUN dotnet ef migrations bundle -p Modules/Portfolio -s Host -c PortfolioDbContext --no-build \
       --self-contained -r linux-x64 -o /bundles/01-portfolio --configuration Release
 
 FROM mcr.microsoft.com/dotnet/runtime-deps:10.0
