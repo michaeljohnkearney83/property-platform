@@ -1,5 +1,5 @@
 # Reusable: deploys one environment. Called by deploy.yml.
-# Each GitHub Environment (dev, staging, prod) holds its own Azure identity and settings:
+# Each GitHub Environment (dev, uat, prod) holds its own Azure identity and settings:
 #   Variables: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, AUTH_AUTHORITY, AUTH_AUDIENCE
 #   Secrets:   POSTGRES_ADMIN_PASSWORD
 # prod should have "Required reviewers" set, so every production release needs an approval.

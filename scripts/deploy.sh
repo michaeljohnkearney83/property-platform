@@ -2,7 +2,7 @@
 # Deploys one environment. Run by .github/workflows/deploy-env.yml after `az login`.
 #
 # Required environment variables:
-#   ENVIRONMENT              dev | staging | prod
+#   ENVIRONMENT              dev | uat | prod
 #   IMAGE_TAG                commit SHA of the images already pushed to GHCR
 #   GHCR_REPO                e.g. ghcr.io/owner/property-platform
 #   GHCR_USERNAME, GHCR_TOKEN  credentials ACR uses to import from GHCR

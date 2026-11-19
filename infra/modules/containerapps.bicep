@@ -20,7 +20,7 @@ var bootstrap = empty(imageTag)
 var placeholderImage = 'mcr.microsoft.com/k8se/quickstart:latest'
 var apiImage = bootstrap ? placeholderImage : '${registryServer}/propertyplatform-api:${imageTag}'
 var webImage = bootstrap ? placeholderImage : '${registryServer}/propertyplatform-web:${imageTag}'
-var aspnetEnvironment = environmentName == 'prod' ? 'Production' : (environmentName == 'staging' ? 'Staging' : 'Dev')
+var aspnetEnvironment = environmentName == 'prod' ? 'Production' : (environmentName == 'uat' ? 'UAT' : 'Dev')
 
 resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   name: logAnalyticsWorkspaceName

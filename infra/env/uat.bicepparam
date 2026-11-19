@@ -1,6 +1,6 @@
 using '../main.bicep'
 
-param environmentName = 'staging'
+param environmentName = 'uat'
 param location = 'uksouth'
 
 // Entra External ID - fill in after creating the external tenant and the API app registration.

@@ -106,7 +106,7 @@ jobs:
           az bicep install
           az bicep build -f infra/main.bicep --stdout > /dev/null
           az bicep lint -f infra/main.bicep
-          for env in dev staging prod; do
+          for env in dev uat prod; do
             az bicep build-params -f infra/env/$env.bicepparam --stdout > /dev/null
           done
 
