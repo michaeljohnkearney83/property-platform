@@ -24,4 +24,5 @@ We want a secure, low-maintenance delivery setup for a small team: GitHub for co
 ## Consequences
 
 - The repo settings in the README must be applied once: environments, reviewers, branch protection, `DEPLOY_ENABLED`, and secret scanning.
-- Later hardening, not yet done: pin third-party actions to commit SHAs (Dependabot keeps them updated), sign images with build attestations, and add Bicep `what-if` to PRs from branches in this repo.
+- Third-party actions are pinned to full commit SHAs, with the version in a comment. Dependabot keeps them updated, and CodeQL flags any unpinned action. First-party `actions/*` and `github/*` actions use version tags.
+- Later hardening, not yet done: sign images with build attestations, and add Bicep `what-if` to PRs from branches in this repo.
