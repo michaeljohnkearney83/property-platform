@@ -1,12 +1,21 @@
 # Property Platform
 
+[![Deploy](https://github.com/michaeljohnkearney83/property-platform/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/michaeljohnkearney83/property-platform/actions/workflows/deploy.yml)
+[![CodeQL](https://github.com/michaeljohnkearney83/property-platform/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/michaeljohnkearney83/property-platform/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/michaeljohnkearney83/property-platform?include_prereleases&sort=semver)](https://github.com/michaeljohnkearney83/property-platform/releases)
+![.NET](https://img.shields.io/badge/.NET-10%20LTS-512BD4?logo=dotnet)
+![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs)
+![Node](https://img.shields.io/badge/Node-24%20LTS-339933?logo=nodedotjs)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Azure](https://img.shields.io/badge/hosted%20on-Azure-0078D4)
+
 Multi-tenant SaaS for residential property management: portfolio, landlords, tenants, tenancies, rent and client accounting, compliance, maintenance, documents and reporting.
 
-| Layer | Technology |
-|---|---|
-| Backend | .NET 10, ASP.NET Core minimal APIs, EF Core 10 + Npgsql, modular monolith |
-| Frontend | Next.js 15 (App Router, TypeScript, Tailwind) |
-| Database | PostgreSQL 16 with row-level security (RLS) per organisation, pgvector |
+| Layer | Technology | Version |
+|---|---|---|
+| Backend | ASP.NET Core minimal APIs, EF Core + Npgsql, modular monolith | .NET 10 (LTS), EF Core 10 |
+| Frontend | Next.js (App Router, TypeScript, Tailwind) | Next.js 15, React 19, Node 24 (LTS) |
+| Database | PostgreSQL with row-level security (RLS) per organisation, pgvector | PostgreSQL 16 |
 | Hosting | Azure (UK South): Container Apps, PostgreSQL Flexible Server, Blob Storage, Key Vault, Front Door + WAF, Application Insights |
 | IaC | Bicep (`infra/`) |
 | Source control | GitHub |
@@ -32,6 +41,8 @@ infra/env/*.bicepparam    dev / staging / prod parameters
 .github/workflows/deploy.yml      On push to main: CI -> publish images to GHCR -> dev -> staging -> prod
 .github/workflows/deploy-env.yml  Deploys one environment (OIDC login to Azure)
 .github/workflows/codeql.yml      CodeQL security scanning (C#, TypeScript, workflows)
+.github/workflows/pr-title.yml    Enforces Conventional Commit PR titles (they drive versioning)
+release-please-config.json        Release automation config (version.txt, CHANGELOG.md, version bumps)
 .github/dependabot.yml            Weekly dependency update PRs (NuGet, npm, Actions, Docker)
 scripts/deploy.sh                 The release steps for one environment
 db/init/                  Local Postgres bootstrap (roles, extensions)
@@ -136,7 +147,7 @@ feature/AB#123-short-name --PR--> main --> dev --> staging (UAT) --[approve]--> 
 
 - **Branches are not environments.** Only `main` is deployed. Each merge produces one build, which is promoted from dev to staging (UAT) to prod.
 - **Work branches:** branch off `main` as `feature/AB#<id>-short-name`, `bugfix/...` or `hotfix/...`. Keep them short-lived (days, not weeks).
-- **Merging:** open a PR, and write `Fixes AB#<id>` in it to close the Boards item on merge. The PR can only merge when all checks pass **and** the branch contains the latest `main`. Use **Update branch** on the PR to merge `main` into it first. PRs are squash-merged, and the branch is then deleted.
+- **Merging:** open a PR with a Conventional Commit title, e.g. `feat: add tenancies (AB#123)`, and write `Fixes AB#<id>` in its body to close the Boards item on merge. The PR can only merge when all checks pass **and** the branch contains the latest `main`. Use **Update branch** on the PR to merge `main` into it first. PRs are squash-merged, and the branch is then deleted.
 - **Release:** a merge deploys to dev, then staging, automatically. Approving the `prod` deployment in GitHub is the UAT sign-off.
 - **Hotfix:** use the same path (`hotfix/...` -> PR -> main), and approve prod as soon as staging passes.
 - **Unfinished features** go behind feature flags, not long-lived branches, so `main` can always be released.
@@ -160,6 +171,42 @@ Each environment runs `scripts/deploy.sh`:
 5. Smoke-tests `/health/ready` and `/api/health`.
 
 Migrations run before the new code goes live, so they must be **expand/contract**: backwards-compatible with the previous release.
+
+## Versioning and releases
+
+The product follows **Semantic Versioning** (`MAJOR.MINOR.PATCH`). The current version is in [`version.txt`](version.txt) and the history is in [`CHANGELOG.md`](CHANGELOG.md).
+
+| Where | Shows |
+|---|---|
+| API `GET /version` | `{ "version": "0.1.0", "commit": "5c24518", "environment": "Production" }` |
+| OpenAPI document | `info.version` = `0.1.0+5c24518` |
+| Web app footer | `Property Platform v0.1.0 (5c24518)` |
+| Container images | `ghcr.io/<owner>/<repo>/<image>:<sha>` for every build, plus `:<version>` and `:latest` for releases |
+
+**How a version is chosen.** [release-please](https://github.com/googleapis/release-please) reads the squash-merge commits on `main`, which are the PR titles. Every PR title must therefore be a [Conventional Commit](https://www.conventionalcommits.org/), and the **PR title** check enforces this:
+
+| PR title | Version bump |
+|---|---|
+| `feat: add tenancy renewals` | minor (0.1.0 -> 0.2.0) |
+| `fix: round rent to the penny` / `perf:` / `deps:` | patch (0.1.0 -> 0.1.1) |
+| `feat!: ...`, or `BREAKING CHANGE:` in the body | major (minor while below 1.0) |
+| `docs:` `refactor:` `ci:` `build:` `chore:` `test:` | no release on its own |
+
+**How a release happens.**
+1. After each merge, release-please updates a PR called **`chore(main): release x.y.z`**. It bumps `version.txt`, `Directory.Build.props` and `package.json`, and writes `CHANGELOG.md`.
+2. When you're ready to release, merge that PR. This creates the `vX.Y.Z` git tag and the GitHub Release, and adds `:x.y.z` and `:latest` tags to the images.
+3. The merge deploys like any other: dev, then staging, then prod after approval.
+
+Merges that aren't release PRs still deploy. They show the last released version plus their commit SHA, so you always know exactly what is running.
+
+**One-time setup for releases:**
+- Allow GitHub Actions to create PRs. This is already enabled: **Settings -> Actions -> General -> Workflow permissions**.
+- Create a fine-grained personal access token with access to this repo only:
+  - Contents: read and write
+  - Pull requests: read and write
+- Save it as the repository secret **`RELEASE_PLEASE_TOKEN`**.
+
+Without that token, release PRs are opened by the default `GITHUB_TOKEN`. GitHub doesn't run workflows for those PRs, so the required checks never report and branch protection blocks the merge.
 
 ## Azure environments
 
@@ -189,7 +236,7 @@ Migrations run before the new code goes live, so they must be **expand/contract*
 2. **Variables -> Actions:** add the repository variable `DEPLOY_ENABLED` = `true` when you're ready to deploy.
 3. **`main` protection** (already applied with `gh`):
    - PR required, with **0 approvals**. This is a solo-developer setup; raise it to 1 when a second developer joins.
-   - Required checks: `API (.NET)`, `Web (Next.js)`, `Infrastructure (Bicep)`, `Container image (api|migrations|web)` and `Analyze (csharp|javascript-typescript|actions)`.
+   - Required checks: `API (.NET)`, `Web (Next.js)`, `Infrastructure (Bicep)`, `Container image (api|migrations|web)`, `Analyze (csharp|javascript-typescript|actions)` and `Conventional PR title`.
    - The branch must be up to date with `main` before merging.
    - Linear history; no force pushes or deletions.
    - The rules apply to admins too.

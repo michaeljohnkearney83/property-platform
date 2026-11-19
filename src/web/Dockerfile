@@ -10,6 +10,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Git SHA from CI, baked into the footer version at build time.
+ARG SOURCE_REVISION=""
+ENV SOURCE_REVISION=${SOURCE_REVISION}
 RUN npm run build
 
 # ---- runtime ----

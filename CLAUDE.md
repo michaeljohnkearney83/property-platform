@@ -26,7 +26,10 @@ Guidance for AI assistants working in this repository. For setup and commands, r
 - **Azure DevOps is used for Boards only.** Don't add Azure Pipelines YAML. Link work items with `AB#<id>` in commits and PRs.
 - **Azure sign-in** is OIDC per GitHub Environment. Never add Azure credentials or publish profiles as secrets.
 - **Branching:** trunk-based. Work on `feature/AB#<id>-...`, `bugfix/...` or `hotfix/...` branches and open PRs into `main`, which is protected: checks must pass, the branch must be up to date, and merges are squash-only. Never push directly to `main`, and never create `dev`, `uat` or `release` branches; environments are pipeline stages, not branches.
+- **Third-party GitHub Actions are pinned to a full commit SHA** with a `# vX` comment (CodeQL flags unpinned ones). `actions/*` and `github/*` may use tags.
 - **Commits:** don't add Claude co-author or "Generated with Claude Code" lines.
+- **PR titles are Conventional Commits** (`feat:`, `fix:`, `deps:`, `docs:`, `refactor:`, `ci:`, `build:`, `chore:`, `test:`, `perf:`, `revert:`; `!` marks a breaking change). They become the squash commit, which release-please reads to pick the next version.
+- **Never hand-edit versions.** `version.txt`, `<Version>` in `src/api/Directory.Build.props`, the `version` in `src/web/package.json` and `CHANGELOG.md` are managed by release-please. `VersionTests` fails if they drift apart.
 
 ## Verify before finishing
 

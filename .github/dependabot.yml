@@ -3,6 +3,11 @@ updates:
   - package-ecosystem: nuget
     directory: /src/api
     schedule: { interval: weekly }
+    commit-message: { prefix: deps }
+    # Major upgrades (e.g. .NET 11 packages) are planned work, not routine updates.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       dotnet:
         patterns: ["*"]
@@ -10,6 +15,11 @@ updates:
   - package-ecosystem: npm
     directory: /src/web
     schedule: { interval: weekly }
+    commit-message: { prefix: deps }
+    # Major upgrades (e.g. Next.js 16) are planned work, not routine updates.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       web:
         patterns: ["*"]
@@ -17,7 +27,15 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+    commit-message: { prefix: ci }
 
   - package-ecosystem: docker
     directories: [/src/api, /src/web]
     schedule: { interval: monthly }
+    commit-message: { prefix: build }
+    # Stay on LTS: .NET 10 (LTS) and even-numbered Node LTS lines. Upgrade majors deliberately.
+    ignore:
+      - dependency-name: "dotnet/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
