@@ -11,6 +11,29 @@
 
 Multi-tenant SaaS for residential property management: portfolio, landlords, tenants, tenancies, rent and client accounting, compliance, maintenance, documents and reporting.
 
+<!-- toc -->
+
+**Contents**
+
+- [Repository layout](#repository-layout)
+- [Prerequisites](#prerequisites)
+- [Run locally](#run-locally)
+   - [Local authentication](#local-authentication)
+- [Tests](#tests)
+- [Multi-tenancy (organisations)](#multi-tenancy-organisations)
+- [Adding a module](#adding-a-module)
+- [CI/CD (GitHub Actions)](#cicd-github-actions)
+   - [CI: .github/workflows/ci.yml](#ci-githubworkflowsciyml)
+   - [Branching and release flow (trunk-based)](#branching-and-release-flow-trunk-based)
+   - [Release: .github/workflows/deploy.yml](#release-githubworkflowsdeployyml)
+- [Versioning and releases](#versioning-and-releases)
+- [Azure environments](#azure-environments)
+   - [One-time setup](#one-time-setup)
+   - [Manual infrastructure deploy](#manual-infrastructure-deploy)
+- [Known gaps and next steps](#known-gaps-and-next-steps)
+
+<!-- /toc -->
+
 | Layer | Technology | Version |
 |---|---|---|
 | Backend | ASP.NET Core minimal APIs, EF Core + Npgsql, modular monolith | .NET 10 (LTS), EF Core 10 |
@@ -45,6 +68,7 @@ infra/env/*.bicepparam    dev / staging / prod parameters
 release-please-config.json        Release automation config (version.txt, CHANGELOG.md, version bumps)
 .github/dependabot.yml            Weekly dependency update PRs (NuGet, npm, Actions, Docker)
 scripts/deploy.sh                 The release steps for one environment
+scripts/readme-toc.py             Regenerates this README's Contents menu (CI checks it is current)
 db/init/                  Local Postgres bootstrap (roles, extensions)
 docs/adr/                 Architecture decision records
 ```
