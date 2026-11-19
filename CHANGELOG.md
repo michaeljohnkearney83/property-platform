@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The file is generated b
 [release-please](https://github.com/googleapis/release-please) from Conventional Commit PR titles.
 Do not edit it by hand.
 
+## [0.1.1](https://github.com/michaeljohnkearney83/property-platform/compare/v0.1.0...v0.1.1) (2026-11-19)
+
+
+### Documentation
+
+* setup checklist reflecting applied repo settings ([#19](https://github.com/michaeljohnkearney83/property-platform/issues/19)) ([e780ebb](https://github.com/michaeljohnkearney83/property-platform/commit/e780ebb298a3ffea52b0103230db017a65201b40))
+
 ## 0.1.0 (2026-11-19)
 
 ### Features
