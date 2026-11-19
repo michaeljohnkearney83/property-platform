@@ -227,8 +227,11 @@ Merges that aren't release PRs still deploy. They show the last released version
 - GitHub Actions is allowed to create PRs (**Settings -> Actions -> General -> Workflow permissions**).
 - Create a fine-grained personal access token with access to this repo only:
   - Contents: read and write
+  - Issues: read and write (release-please labels its release PRs)
   - Pull requests: read and write
+  - Metadata: read-only (added automatically)
 - Save it as the repository secret **`RELEASE_PLEASE_TOKEN`**.
+- The token expires. Set a calendar reminder to regenerate it and update the secret before the expiry date.
 
 Without that token, release PRs are opened by the default `GITHUB_TOKEN`. GitHub doesn't run workflows for those PRs, so the required checks never report and branch protection blocks the merge.
 
