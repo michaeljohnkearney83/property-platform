@@ -28,7 +28,7 @@ Multi-tenant SaaS for residential property management: portfolio, landlords, ten
    - [Release: .github/workflows/deploy.yml](#release-githubworkflowsdeployyml)
 - [Versioning and releases](#versioning-and-releases)
 - [Azure environments](#azure-environments)
-   - [One-time setup](#one-time-setup)
+   - [Setup checklist](#setup-checklist)
    - [Manual infrastructure deploy](#manual-infrastructure-deploy)
 - [Known gaps and next steps](#known-gaps-and-next-steps)
 
@@ -223,8 +223,8 @@ The product follows **Semantic Versioning** (`MAJOR.MINOR.PATCH`). The current v
 
 Merges that aren't release PRs still deploy. They show the last released version plus their commit SHA, so you always know exactly what is running.
 
-**One-time setup for releases:**
-- Allow GitHub Actions to create PRs. This is already enabled: **Settings -> Actions -> General -> Workflow permissions**.
+**One-time setup for releases** (status is tracked in the [setup checklist](#setup-checklist)):
+- GitHub Actions is allowed to create PRs (**Settings -> Actions -> General -> Workflow permissions**).
 - Create a fine-grained personal access token with access to this repo only:
   - Contents: read and write
   - Pull requests: read and write
@@ -240,37 +240,50 @@ Without that token, release PRs are opened by the default `GITHUB_TOKEN`. GitHub
 | staging | `rg-propertyplatform-staging` | Front Door with WAF in Detection mode |
 | prod | `rg-propertyplatform-prod` | Zone-redundant Postgres HA, geo-redundant backups, GZRS storage, WAF in Prevention mode, 2+ replicas |
 
-### One-time setup
+### Setup checklist
+
+Ticked items are done. Unticked items are still needed before the deploy stages can run.
+
+**GitHub: repository** (**Settings**)
+
+- [x] Repo is public, with squash merge only, the **Update branch** button enabled, and branches deleted after merge.
+- [x] **`main` protection:**
+  - A PR is required, with **0 approvals**. This is a solo-developer setup; raise it to 1 when a second developer joins.
+  - Required checks: `API (.NET)`, `Web (Next.js)`, `Infrastructure (Bicep)`, `Container image (api|migrations|web)`, `Analyze (csharp|javascript-typescript|actions)` and `Conventional PR title`.
+  - The branch must be up to date with `main` before merging.
+  - Linear history, all conversations resolved, and no force pushes or deletions.
+  - The rules apply to admins too.
+- [x] **Actions -> General -> Actions permissions:** "Allow *owner*, and select non-*owner*, actions and reusable workflows".
+  - Actions created by GitHub are allowed. Marketplace "verified creators" are **not** allowed automatically.
+  - Allow-list:
+    ```
+    docker/login-action@*, docker/setup-buildx-action@*, docker/build-push-action@*,
+    azure/login@*, googleapis/release-please-action@*, amannn/action-semantic-pull-request@*
+    ```
+  - **Require actions to be pinned to a full-length commit SHA** is on. When you add a new third-party action, add it to this list and pin it to a SHA.
+- [x] **Actions -> General -> Workflow permissions:** "Read repository contents and packages permissions" is the default, and "Allow GitHub Actions to create and approve pull requests" is on (release-please needs it).
+- [ ] **Secrets -> Actions:** add `RELEASE_PLEASE_TOKEN`. See [Versioning and releases](#versioning-and-releases).
+- [ ] **Code security:** turn on **Secret scanning** and **Push protection**. Both are free for public repos. Dependabot alerts and CodeQL are already active.
+- [ ] **Environments:** create `dev`, `staging` and `prod`.
+  - Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AUTH_AUTHORITY`, `AUTH_AUDIENCE`
+  - Secret: `POSTGRES_ADMIN_PASSWORD`
+  - On `prod`, add **Required reviewers** (yourself) and restrict deployment branches to `main`.
+- [ ] **Variables -> Actions:** add the repository variable `DEPLOY_ENABLED` = `true`, once Azure is ready.
 
 **Azure: one identity per environment.** No passwords are stored; sign-in uses OIDC.
 
-1. In Microsoft Entra ID, create an app registration per environment, e.g. `gh-propertyplatform-dev`.
-2. On each one, add a **federated credential**:
-   - Scenario: *GitHub Actions deploying Azure resources*
-   - Entity type: *Environment*
-   - Environment name: `dev`, `staging` or `prod`, matching the app registration
-3. Grant each identity **Owner** on its subscription. Owner is needed because the templates create role assignments. Alternatively, grant Contributor plus Role Based Access Control Administrator.
+- [ ] In Microsoft Entra ID, create an app registration per environment, e.g. `gh-propertyplatform-dev`.
+- [ ] On each one, add a **federated credential**:
+  - Scenario: *GitHub Actions deploying Azure resources*
+  - Entity type: *Environment*
+  - Environment name: `dev`, `staging` or `prod`, matching the app registration
+- [ ] Grant each identity **Owner** on its subscription. Owner is needed because the templates create role assignments. Alternatively, grant Contributor plus Role Based Access Control Administrator.
+- [ ] Create the Entra External ID tenant and the API app registration, which provide `AUTH_AUTHORITY` and `AUTH_AUDIENCE`.
 
-**GitHub** (repo **Settings**):
+**Azure DevOps** (Boards only)
 
-1. **Environments:** create `dev`, `staging` and `prod`.
-   - Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AUTH_AUTHORITY`, `AUTH_AUDIENCE`
-   - Secret: `POSTGRES_ADMIN_PASSWORD`
-   - On `prod`, add **Required reviewers** and restrict deployments to the `main` branch.
-2. **Variables -> Actions:** add the repository variable `DEPLOY_ENABLED` = `true` when you're ready to deploy.
-3. **`main` protection** (already applied with `gh`):
-   - PR required, with **0 approvals**. This is a solo-developer setup; raise it to 1 when a second developer joins.
-   - Required checks: `API (.NET)`, `Web (Next.js)`, `Infrastructure (Bicep)`, `Container image (api|migrations|web)`, `Analyze (csharp|javascript-typescript|actions)` and `Conventional PR title`.
-   - The branch must be up to date with `main` before merging.
-   - Linear history; no force pushes or deletions.
-   - The rules apply to admins too.
-   - Repo merge settings: squash merge only, **Update branch** button enabled, and branches deleted after merge.
-4. **Code security:** turn on **Secret scanning** with **Push protection**, and **Dependabot alerts**. CodeQL runs from `codeql.yml`.
-
-**Azure DevOps** (Boards only):
-
-1. Create a project with the **Agile** process.
-2. Install the **Azure Boards** GitHub app on this repo. Writing `AB#<id>` in a commit or PR then links it to the work item, and `Fixes AB#<id>` closes the item when the PR merges.
+- [ ] Create a project with the **Agile** process.
+- [ ] Install the **Azure Boards** GitHub app on this repo. Writing `AB#<id>` in a commit or PR then links it to the work item, and `Fixes AB#<id>` closes the item when the PR merges.
 
 ### Manual infrastructure deploy
 
