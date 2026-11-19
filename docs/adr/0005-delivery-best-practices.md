@@ -23,6 +23,6 @@ We want a secure, low-maintenance delivery setup for a small team: GitHub for co
 
 ## Consequences
 
-- The repo settings in the README must be applied once: environments, reviewers, branch protection, `DEPLOY_ENABLED`, and secret scanning.
+- The repo settings must be applied once. README "Setup checklist" tracks which are done: Actions allow-list and SHA pinning, workflow permissions, branch protection, environments and reviewers, `DEPLOY_ENABLED`, and secret scanning.
 - All actions, including first-party `actions/*` and `github/*`, are pinned to full commit SHAs with the version in a comment. The repo setting "Require actions to be pinned to a full-length commit SHA" enforces this, and Actions are restricted to GitHub-authored ones plus an allow-list of third-party ones. Dependabot keeps the SHAs updated.
 - Later hardening, not yet done: sign images with build attestations, and add Bicep `what-if` to PRs from branches in this repo.
