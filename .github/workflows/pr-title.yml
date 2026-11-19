@@ -1,0 +1,36 @@
+# PR titles become the squash-merge commit on main, which release-please reads to pick
+# the next version and write the changelog. So every PR title must be a Conventional Commit:
+#   feat: ...  -> minor bump      fix: / perf: / deps: ... -> patch bump
+#   feat!: ... or "BREAKING CHANGE:" in the body -> major bump (minor while < 1.0)
+name: PR title
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional-title:
+    name: Conventional PR title
+    runs-on: ubuntu-latest
+    steps:
+      # Reads only the PR title via the API; never checks out PR code (safe with pull_request_target).
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            deps
+            build
+            ci
+            chore
+            test
+            revert
+          requireScope: false

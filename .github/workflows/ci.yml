@@ -147,6 +147,7 @@ jobs:
           file: ${{ matrix.file }}
           push: ${{ inputs.publish == true }}
           tags: ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}
+          build-args: SOURCE_REVISION=${{ github.sha }}
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}

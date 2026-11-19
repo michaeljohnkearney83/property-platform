@@ -18,7 +18,12 @@ if (!string.IsNullOrWhiteSpace(config["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
 // ---- Platform services ----
 builder.Services.AddProblemDetails();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(o => o.AddDocumentTransformer((doc, _, _) =>
+{
+    doc.Info.Title = "Property Platform API";
+    doc.Info.Version = AppVersion.Display;
+    return Task.CompletedTask;
+}));
 builder.Services.AddScoped<OrgContext>();
 builder.Services.AddScoped<IOrgContext>(sp => sp.GetRequiredService<OrgContext>());
 builder.Services.AddScoped<OrgRlsConnectionInterceptor>();
@@ -92,6 +97,11 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi().AllowAnonymous();
 }
+
+// Which build is running in this environment (no auth: contains no sensitive data).
+app.MapGet("/version", (IHostEnvironment env) => new VersionInfo(AppVersion.Version, AppVersion.Commit, env.EnvironmentName))
+    .AllowAnonymous()
+    .WithTags("Platform");
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") }).AllowAnonymous();

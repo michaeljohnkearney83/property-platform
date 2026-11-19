@@ -16,6 +16,9 @@ const nav = [
   { href: "/maintenance", label: "Maintenance" },
 ];
 
+const version = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0";
+const commit = process.env.NEXT_PUBLIC_APP_COMMIT;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en-GB">
@@ -35,7 +38,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               ))}
             </nav>
           </aside>
-          <main className="flex-1 p-4 md:p-8">{children}</main>
+          <div className="flex flex-1 flex-col">
+            <main className="flex-1 p-4 md:p-8">{children}</main>
+            <footer className="border-t border-slate-200 px-4 py-2 text-xs text-slate-400 md:px-8">
+              Property Platform v{version}
+              {commit && <span title="Build commit"> ({commit})</span>}
+            </footer>
+          </div>
         </div>
       </body>
     </html>
