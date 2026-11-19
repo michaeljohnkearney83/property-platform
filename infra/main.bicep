@@ -1,8 +1,8 @@
-// Property Platform - one environment (dev | staging | prod) in one resource group.
+// Property Platform - one environment (dev | uat | prod) in one resource group.
 // Deploy:  az deployment group create -g rg-propertyplatform-<env> -f infra/main.bicep -p infra/env/<env>.bicepparam
 targetScope = 'resourceGroup'
 
-@allowed(['dev', 'staging', 'prod'])
+@allowed(['dev', 'uat', 'prod'])
 param environmentName string
 
 @description('Primary region. UK South keeps data in the UK.')
@@ -135,7 +135,7 @@ module apps 'modules/containerapps.bicep' = {
     authAuthority: authAuthority
     authAudience: authAudience
     zoneRedundant: isProd
-    minReplicas: isProd ? 2 : (environmentName == 'staging' ? 1 : 0)
+    minReplicas: isProd ? 2 : (environmentName == 'uat' ? 1 : 0)
   }
 }
 

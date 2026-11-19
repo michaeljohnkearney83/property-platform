@@ -59,9 +59,9 @@ src/api/                  .NET solution (PropertyPlatform.sln)
 src/web/                  Next.js app (staff UI; portals to follow)
 infra/main.bicep          One environment = one resource group
 infra/modules/            monitoring, network, postgres, keyvault, registry, storage, containerapps, frontdoor
-infra/env/*.bicepparam    dev / staging / prod parameters
+infra/env/*.bicepparam    dev / uat / prod parameters
 .github/workflows/ci.yml          Build, test, lint, Bicep, Docker images (every PR; called by deploy.yml)
-.github/workflows/deploy.yml      On push to main: CI -> publish images to GHCR -> dev -> staging -> prod
+.github/workflows/deploy.yml      On push to main: CI -> publish to GHCR -> dev -> uat (approval) -> prod (releases only, approval)
 .github/workflows/deploy-env.yml  Deploys one environment (OIDC login to Azure)
 .github/workflows/codeql.yml      CodeQL security scanning (C#, TypeScript, workflows)
 .github/workflows/pr-title.yml    Enforces Conventional Commit PR titles (they drive versioning)
@@ -165,15 +165,16 @@ Actions minutes are free for public repositories. Dependabot opens grouped updat
 ### Branching and release flow (trunk-based)
 
 ```
-feature/AB#123-short-name --PR--> main --> dev --> staging (UAT) --[approve]--> prod
-   (CI on every push + PR)    (checks, up to date)  auto     auto                 manual
+feature/AB#123-short-name --PR--> main --> DEV --[approve]--> UAT --[release + approve]--> PROD
+   (CI on every push + PR)  (checks, up to date) auto   "dev is happy"      only versioned releases
 ```
 
-- **Branches are not environments.** Only `main` is deployed. Each merge produces one build, which is promoted from dev to staging (UAT) to prod.
+- **Branches are not environments.** Only `main` is deployed. There are three hosted environments (dev, uat, prod), each in its own Azure resource group with its own URL and database. Each merge produces one build, and that same build is promoted from dev to uat. Released versions then go on to prod.
 - **Work branches:** branch off `main` as `feature/AB#<id>-short-name`, `bugfix/...` or `hotfix/...`. Keep them short-lived (days, not weeks).
 - **Merging:** open a PR with a Conventional Commit title, e.g. `feat: add tenancies (AB#123)`, and write `Fixes AB#<id>` in its body to close the Boards item on merge. The PR can only merge when all checks pass **and** the branch contains the latest `main`. Use **Update branch** on the PR to merge `main` into it first. PRs are squash-merged, and the branch is then deleted.
-- **Release:** a merge deploys to dev, then staging, automatically. Approving the `prod` deployment in GitHub is the UAT sign-off.
-- **Hotfix:** use the same path (`hotfix/...` -> PR -> main), and approve prod as soon as staging passes.
+- **Getting to UAT:** every merge deploys to **dev** automatically. The run then pauses with a **Review deployments** button. Approve `uat` when you're happy with dev; builds you don't approve never reach UAT.
+- **Getting to prod:** only a **release** goes to prod. Merge the `chore(main): release x.y.z` PR, which deploys through dev and UAT like any merge, then approve `prod`. Ordinary merges stop at UAT.
+- **Hotfix:** `hotfix/...` -> PR titled `fix: ...` -> merge. Then merge the release PR (a patch release) and approve `uat` and `prod`.
 - **Unfinished features** go behind feature flags, not long-lived branches, so `main` can always be released.
 
 ### Release: `.github/workflows/deploy.yml`
@@ -181,11 +182,12 @@ feature/AB#123-short-name --PR--> main --> dev --> staging (UAT) --[approve]--> 
 On every push to `main`, the release runs these steps in order:
 
 1. **CI**, which builds and pushes the images **once**.
-2. **dev**
-3. **staging**
-4. **prod**, which waits for a required reviewer to approve.
+2. **Release:** release-please updates the release PR, or creates the release if this push *is* the release PR.
+3. **dev:** automatic.
+4. **uat:** waits for a required reviewer to approve (the `uat` environment).
+5. **prod:** runs **only if step 2 created a release**, then waits for a required reviewer to approve (the `prod` environment).
 
-Every environment gets the exact images that CI tested. Deployment is switched off until you set the repository variable `DEPLOY_ENABLED=true`. Until then, `main` is still tested and its images are still published.
+Every environment gets the exact images that CI tested, so the release build approved in UAT is the one that reaches prod. Deployment is switched off until you set the repository variable `DEPLOY_ENABLED=true`. Until then, `main` is still tested and its images are still published.
 
 Each environment runs `scripts/deploy.sh`:
 1. Creates the resource group. On the first run only, it also deploys the infrastructure with placeholder images so the container registry exists.
@@ -219,9 +221,9 @@ The product follows **Semantic Versioning** (`MAJOR.MINOR.PATCH`). The current v
 **How a release happens.**
 1. After each merge, release-please updates a PR called **`chore(main): release x.y.z`**. It bumps `version.txt`, `Directory.Build.props` and `package.json`, and writes `CHANGELOG.md`.
 2. When you're ready to release, merge that PR. This creates the `vX.Y.Z` git tag and the GitHub Release, and adds `:x.y.z` and `:latest` tags to the images.
-3. The merge deploys like any other: dev, then staging, then prod after approval.
+3. That merge deploys to dev, then UAT after approval, and is the only kind of merge that continues to **prod**, after a second approval.
 
-Merges that aren't release PRs still deploy. They show the last released version plus their commit SHA, so you always know exactly what is running.
+Ordinary merges deploy to dev and UAT only. They show the last released version plus their commit SHA, so you always know exactly what is running. Prod only ever runs a clean `x.y.z` release.
 
 **One-time setup for releases** (status is tracked in the [setup checklist](#setup-checklist)):
 - GitHub Actions is allowed to create PRs (**Settings -> Actions -> General -> Workflow permissions**).
@@ -239,9 +241,9 @@ Without that token, release PRs are opened by the default `GITHUB_TOKEN`. GitHub
 
 | Environment | Resource group | Notes |
 |---|---|---|
-| dev | `rg-propertyplatform-dev` | Scale to zero, Burstable Postgres, no Front Door |
-| staging | `rg-propertyplatform-staging` | Front Door with WAF in Detection mode |
-| prod | `rg-propertyplatform-prod` | Zone-redundant Postgres HA, geo-redundant backups, GZRS storage, WAF in Prevention mode, 2+ replicas |
+| dev | `rg-propertyplatform-dev` | Every merge, automatically. Scales to zero, Burstable Postgres, no Front Door |
+| uat | `rg-propertyplatform-uat` | User acceptance testing. Front Door with WAF in Detection mode; approval required to deploy |
+| prod | `rg-propertyplatform-prod` | Releases only, with approval. Zone-redundant Postgres HA, geo-redundant backups, GZRS storage, WAF in Prevention mode, 2+ replicas |
 
 ### Setup checklist
 
@@ -265,12 +267,12 @@ Ticked items are done. Unticked items are still needed before the deploy stages 
     ```
   - **Require actions to be pinned to a full-length commit SHA** is on. When you add a new third-party action, add it to this list and pin it to a SHA.
 - [x] **Actions -> General -> Workflow permissions:** "Read repository contents and packages permissions" is the default, and "Allow GitHub Actions to create and approve pull requests" is on (release-please needs it).
-- [ ] **Secrets -> Actions:** add `RELEASE_PLEASE_TOKEN`. See [Versioning and releases](#versioning-and-releases).
+- [x] **Secrets -> Actions:** `RELEASE_PLEASE_TOKEN` is added and tested (it opened release PR #20, which created v0.1.1).
 - [ ] **Code security:** turn on **Secret scanning** and **Push protection**. Both are free for public repos. Dependabot alerts and CodeQL are already active.
-- [ ] **Environments:** create `dev`, `staging` and `prod`.
-  - Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AUTH_AUTHORITY`, `AUTH_AUDIENCE`
-  - Secret: `POSTGRES_ADMIN_PASSWORD`
-  - On `prod`, add **Required reviewers** (yourself) and restrict deployment branches to `main`.
+- [ ] **Environments:** create `dev`, `uat` and `prod` (**Settings -> Environments**).
+  - Variables (each): `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AUTH_AUTHORITY`, `AUTH_AUDIENCE`
+  - Secret (each): `POSTGRES_ADMIN_PASSWORD`
+  - On **`uat`** and **`prod`**, add **Required reviewers** (yourself), and set **Deployment branches and tags** to `main` only. Leave **Prevent self-review** off while you're the only developer.
 - [ ] **Variables -> Actions:** add the repository variable `DEPLOY_ENABLED` = `true`, once Azure is ready.
 
 **Azure: one identity per environment.** No passwords are stored; sign-in uses OIDC.
@@ -279,7 +281,7 @@ Ticked items are done. Unticked items are still needed before the deploy stages 
 - [ ] On each one, add a **federated credential**:
   - Scenario: *GitHub Actions deploying Azure resources*
   - Entity type: *Environment*
-  - Environment name: `dev`, `staging` or `prod`, matching the app registration
+  - Environment name: `dev`, `uat` or `prod`, matching the app registration
 - [ ] Grant each identity **Owner** on its subscription. Owner is needed because the templates create role assignments. Alternatively, grant Contributor plus Role Based Access Control Administrator.
 - [ ] Create the Entra External ID tenant and the API app registration, which provide `AUTH_AUTHORITY` and `AUTH_AUDIENCE`.
 

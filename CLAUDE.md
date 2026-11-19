@@ -23,7 +23,7 @@ Guidance for AI assistants working in this repository. For setup and commands, r
 
 ## CI and deployment
 
-- **All CI/CD is GitHub Actions.** `ci.yml` runs on PRs and is called by `deploy.yml` on pushes to `main`. `deploy.yml` publishes images to GHCR once, then deploys dev -> staging -> prod through `deploy-env.yml` and `scripts/deploy.sh`.
+- **All CI/CD is GitHub Actions.** `ci.yml` runs on PRs and is called by `deploy.yml` on pushes to `main`. `deploy.yml` publishes images to GHCR once, then deploys through `deploy-env.yml` and `scripts/deploy.sh`: **dev** automatically, **uat** after approval, and **prod** only for release-please releases, after approval. The environments are `dev`, `uat` and `prod`; never reintroduce `staging`.
 - **Azure DevOps is used for Boards only.** Don't add Azure Pipelines YAML. Link work items with `AB#<id>` in commits and PRs.
 - **Azure sign-in** is OIDC per GitHub Environment. Never add Azure credentials or publish profiles as secrets.
 - **Branching:** trunk-based. Work on `feature/AB#<id>-...`, `bugfix/...` or `hotfix/...` branches and open PRs into `main`, which is protected: checks must pass, the branch must be up to date, and merges are squash-only. Never push directly to `main`, and never create `dev`, `uat` or `release` branches; environments are pipeline stages, not branches.
