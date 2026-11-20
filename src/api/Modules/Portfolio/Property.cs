@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PropertyPlatform.SharedKernel.Compliance;
 using PropertyPlatform.SharedKernel.Tenancy;
 
 namespace PropertyPlatform.Modules.Portfolio;
@@ -36,8 +37,11 @@ public sealed class Property : IOrgOwned
     public Guid Id { get; private set; }
     public Guid OrgId { get; private set; }
     public string Reference { get; private set; }
+    // A let property is the tenant's home, so its address is personal data.
+    [PersonalData(PersonalDataCategory.Address)]
     public string AddressLine1 { get; private set; }
     public string Town { get; private set; }
+    [PersonalData(PersonalDataCategory.Address)]
     public string Postcode { get; private set; }
     public PropertyType Type { get; private set; }
     public int Bedrooms { get; private set; }
@@ -65,7 +69,7 @@ public sealed class PortfolioDbContext(DbContextOptions<PortfolioDbContext> opti
             e.Property(p => p.Type).HasConversion<string>().HasMaxLength(20);
             e.HasIndex(p => new { p.OrgId, p.Reference }).IsUnique();
 
-            // First line of defence; Postgres RLS is the second (see /db/rls.sql).
+            // First line of defence; Postgres RLS (created in the migration) is the second.
             e.HasQueryFilter(p => p.OrgId == orgContext.OrgId);
         });
     }

@@ -21,6 +21,7 @@ Multi-tenant SaaS for residential property management: portfolio, landlords, ten
    - [Local authentication](#local-authentication)
 - [Tests](#tests)
 - [Multi-tenancy (organisations)](#multi-tenancy-organisations)
+- [Compliance](#compliance)
 - [Adding a module](#adding-a-module)
 - [CI/CD (GitHub Actions)](#cicd-github-actions)
    - [CI: .github/workflows/ci.yml](#ci-githubworkflowsciyml)
@@ -53,7 +54,7 @@ src/api/                  .NET solution (PropertyPlatform.sln)
   Host/                   ASP.NET Core entry point, auth, org resolution, health checks
   SharedKernel/           IModule, organisation context, RLS connection interceptor
   Modules/<Name>/         One project per business module (own schema, own endpoints)
-  Tests/                  xUnit: ledger rules + architecture rules
+  Tests/                  xUnit: ledger rules, architecture rules, compliance guardrails
   Dockerfile              API image
   Dockerfile.migrations   EF Core migration bundles (run as a Container Apps Job)
 src/web/                  Next.js app (staff UI; portals to follow)
@@ -71,6 +72,9 @@ scripts/deploy.sh                 The release steps for one environment
 scripts/readme-toc.py             Regenerates this README's Contents menu (CI checks it is current)
 db/init/                  Local Postgres bootstrap (roles, extensions)
 docs/adr/                 Architecture decision records
+docs/compliance/          UK lettings and UK GDPR rules with permanent IDs (read by people and AI tools)
+.claude/skills/compliance/  Claude Code skill: which compliance rules apply to a change + checklist
+.github/pull_request_template.md  PR checklist, including the compliance section
 ```
 
 ## Prerequisites
@@ -136,14 +140,29 @@ cd src/web && npm run lint && npm run typecheck && npm run build
   2. Postgres RLS policies created in migrations. `OrgRlsConnectionInterceptor` sets `app.org_id` on each connection.
 - The app must connect as a **non-superuser**, because superusers bypass RLS.
 
+## Compliance
+
+The platform implements UK lettings law (gas safety, EICR, EPC, deposits, Right to Rent, licensing, the Renters' Rights Act) and must meet UK GDPR. The rules are written down in [`docs/compliance/`](docs/compliance/README.md), one file per area, each rule with a permanent ID (`GAS-01`, `DP-02`...), a source link and a status. Every rule starts as **Draft** until a person has verified it; this is not legal advice.
+
+The rules are built in so that AI-generated code follows them too:
+
+| Layer | What it does |
+|---|---|
+| `CLAUDE.md` and the `compliance` skill | Tell AI assistants which rules apply to a change and to never invent law |
+| Rules as data | Legal periods and dates come from the rules catalogue, with effective dates, not hard-coded values |
+| `ComplianceArchitectureTests` | Fails the build if an org-owned entity lacks a query filter or RLS (`ORG-01`, `ORG-02`) or personal data isn't marked `[PersonalData]` (`DP-02`) |
+| PR template | A compliance checklist on every PR |
+
+See [ADR 0008](docs/adr/0008-compliance-guardrails-for-ai-assisted-development.md).
+
 ## Adding a module
 
 1. `dotnet new classlib -n PropertyPlatform.Modules.<Name> -o src/api/Modules/<Name> -f net10.0`, then reference `SharedKernel` and add the project to the solution and Host.
 2. Implement `IModule` and add it to `Host/ModuleCatalog.cs`.
-3. Give it its own `DbContext` with `HasDefaultSchema("<name>")`, an org query filter, an RLS policy in its first migration, and an `IDesignTimeDbContextFactory`.
+3. Give it its own `DbContext` with `HasDefaultSchema("<name>")`, an org query filter, an RLS policy in its first migration, `[PersonalData]` on personal-data properties, and an `IDesignTimeDbContextFactory`.
 4. Add a `dotnet ef migrations bundle` line to `Dockerfile.migrations`.
 
-`ArchitectureTests` fails the build if a module references another module or is missing from the catalogue.
+`ArchitectureTests` fails the build if a module references another module or is missing from the catalogue. `ComplianceArchitectureTests` fails it if step 3's query filter, RLS policy or `[PersonalData]` annotations are missing.
 
 ## CI/CD (GitHub Actions)
 
@@ -303,4 +322,7 @@ POSTGRES_ADMIN_PASSWORD='...' AUTH_AUTHORITY='...' AUTH_AUDIENCE='...' az deploy
 - Private endpoints for Key Vault and Storage, and Front Door Private Link to Container Apps.
 - An OpenAPI-generated TypeScript client.
 - Hangfire worker for scheduled jobs (rent runs, compliance reminders).
+- Compliance module: requirements catalogue, compliance items per property and tenancy, expiry dashboard (`GAS-*`, `ELEC-*`, `EPC-*` first).
+- Verify the Draft rules in `docs/compliance/` with a lettings compliance adviser.
+- Logging redaction driven by `[PersonalData]` (`DP-03`), and subject access export and erasure (`DP-07`, `DP-08`).
 - Ledger persistence (append-only journal tables) and endpoints.
