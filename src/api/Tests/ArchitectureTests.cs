@@ -5,12 +5,7 @@ namespace PropertyPlatform.Tests;
 
 public class ArchitectureTests
 {
-    private static readonly Assembly[] ModuleAssemblies =
-        typeof(PropertyPlatform.Host.ModuleCatalog).Assembly
-            .GetReferencedAssemblies()
-            .Where(a => a.Name!.StartsWith("PropertyPlatform.Modules.", StringComparison.Ordinal))
-            .Select(Assembly.Load)
-            .ToArray();
+    private static readonly Assembly[] ModuleAssemblies = Modules.Assemblies;
 
     [Fact]
     public void All_modules_are_registered_in_the_host()

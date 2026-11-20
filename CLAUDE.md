@@ -12,6 +12,17 @@ Guidance for AI assistants working in this repository. For setup and commands, r
 - **Dev auth** (`DevAuthHandler`) is Development-only. Never weaken the guard in `Program.cs`.
 - **Secrets** belong in Key Vault or pipeline secret variables, never in appsettings or bicepparam files.
 
+## Compliance (do not break)
+
+The rules live in `docs/compliance/` (UK lettings law and UK GDPR), each with a permanent ID such as `GAS-01` or `DP-02`. The `compliance` skill in `.claude/skills/compliance/` lists which file to read for which change, and the checklist to run before finishing.
+
+- **Never invent law.** Only implement rules that exist in `docs/compliance/`. If a requirement is missing, stop and propose a new rule entry with a source link for a person to verify. Never guess legal periods, amounts or dates.
+- **Rules are data.** Legal periods, caps and effective dates come from the requirements catalogue or a constant named after its rule ID, never an unexplained literal. Law changes are new rule IDs with effective dates, not edits to old meanings.
+- **Personal data:** mark every persisted personal-data property with `[PersonalData(PersonalDataCategory.X)]` (`SharedKernel/Compliance`). Never log, trace or put personal data in exception messages or AI prompts; log IDs.
+- **Draft rules** may be implemented, but the UI must never tell a user they are "compliant" on the strength of a Draft rule.
+- Tests that enforce a rule put its ID in the test name. `ComplianceArchitectureTests` enforces `ORG-01`, `ORG-02` and `DP-02` on every build.
+- Fill in the Compliance section of `.github/pull_request_template.md`.
+
 ## Conventions
 
 - The build treats warnings as errors (`src/api/Directory.Build.props`). Fix the warning rather than suppressing it, except in generated migrations.
